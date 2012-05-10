@@ -18,6 +18,9 @@ class ArgoLinkRoundups {
     /*Add our custom post fields for our custom post type*/
     add_action("admin_init", array(__CLASS__, "add_custom_post_fields"));
 
+    /*Add the Argo Link Roundups Options sub menu*/
+    add_action("admin_menu", array(__CLASS__, "add_argo_link_roundup_options_page"));
+
     /*Save our custom post fields! Very important!*/
     add_action('save_post', array(__CLASS__, 'save_custom_fields'));
     
@@ -41,7 +44,7 @@ class ArgoLinkRoundups {
   
   /*Register the Argo Links post type */
   function register_post_type() {
-    register_post_type('argolinkroundups', array(
+    $argolinkroundups_options = array(
         'labels' => array(
             'name' => 'Link Roundups',
             'singular_name' => 'Argo Link Roundup',
@@ -60,9 +63,12 @@ class ArgoLinkRoundups {
         'public' => true,
         'menu_position' => 7,
         'taxonomies' => apply_filters('argolinkroundups_taxonomies', array('category','post_tag')),
-        'has_archive' => true
-        )
-      );
+        'has_archive' => true,
+        );
+        if (get_option('argo_link_roundups_custom_url') != "") {
+          $argolinkroundups_options['rewrite'] = array('slug' => get_option('argo_link_roundups_custom_url'));
+        }
+    register_post_type('argolinkroundups', $argolinkroundups_options);
   }
   
   /*Tell Wordpress where to put our custom fields for our custom post type*/
@@ -92,7 +98,61 @@ class ArgoLinkRoundups {
       update_post_meta((isset($_POST['post_id']) ? $_POST['post_ID'] : $post_id), "argo_link_description", $_POST["argo_link_description"]);
     }
   }
+  /*Add the Argo Link Roundup options sub menu*/
+  function add_argo_link_roundup_options_page() {
+    add_submenu_page( "edit.php?post_type=argolinkroundups", "Options", "Options", "edit_posts", "argo-link-roundups-options", array(__CLASS__, 'build_argo_link_roundups_options_page' ) );
+    //call register settings function
+    add_action( 'admin_init', array(__CLASS__,'register_mysettings') );
+  }
 
+
+  function register_mysettings() {
+    //register our settings
+    register_setting( 'argolinkroundups-settings-group', 'argo_link_roundups_custom_url' );
+    register_setting( 'argolinkroundups-settings-group', 'argo_link_roundups_custom_html' );
+  }
+
+  function build_argo_link_roundups_options_page() { ?>
+  <?php
+$default_html = <<<EOT
+<p class='link-roundup'><a href='#!URL!#'>#!TITLE!#</a> &ndash; <span class='description'>#!DESCRIPTION!#</span> <em>#!SOURCE!#</em></p>
+EOT;
+  ?>
+<div class="wrap">
+<h2>Argo Link Roundups</h2>
+
+<form method="post" action="options.php">
+    <?php settings_fields( 'argolinkroundups-settings-group' ); ?>
+    <?php do_settings_fields( 'argolinkroundups-settings-group' ); ?>
+    <table class="form-table">
+        <tr valign="top">
+          <th scope="row">Custom Url Slug</th>
+          <td><input type="text" name="argo_link_roundups_custom_url" value="<?php echo get_option('argo_link_roundups_custom_url'); ?>" /></td>
+        </tr>
+        <tr valign="top">
+          <th scope="row">Custom HTML</th>
+          <td><textarea name="argo_link_roundups_custom_html" cols='100' rows='5' ><?php echo (get_option('argo_link_roundups_custom_html') != "" ? get_option('argo_link_roundups_custom_html')  : $default_html); ?></textarea></td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>
+          <em>(You will need to use single quotes in your html above, all double quotes will be automatically converted to single quotes before use)</em><br />
+          You can use the above field to customize the html that is output for each link.  The following tags will be replaced with the url, title, description, and source automatically when the link is pushed into the editor.<br />
+          #!URL!#, #!TITLE!#, #!DESCRIPTION!#, #!SOURCE!#<br />
+          The current default html for reference is:<br />
+          <?php echo htmlspecialchars($default_html); ?><br />
+          <em>(Please note that you will have to update your style.css file for your theme to style your new html)</em><br />
+          </td>
+        </tr>
+    </table>
+    
+    <p class="submit">
+    <input type="submit" class="button-primary" value="<?php _e('Save Changes') ?>" />
+    </p>
+
+</form>
+</div>
+<?php } 
 }
 /* Initialize the plugin using it's init() function */
 ArgoLinkRoundups::init();
